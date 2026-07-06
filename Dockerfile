@@ -17,7 +17,11 @@ RUN mkdir -p /var/airnotifier/pemdir && \
 VOLUME ["/airnotifier", "/var/log/airnotifier", "/var/airnotifier/pemdir"]
 WORKDIR /airnotifier
 
-RUN pipenv install --deploy
+# Pipfile has no [requires] python_version, so pipenv's interpreter search
+# picks up Debian's system /usr/bin/python3.9 instead of this image's
+# /usr/local/bin/python3.6 (which is what's actually on PATH and has the
+# headers/toolchain below). Pin it explicitly instead of relying on PATH order.
+RUN pipenv install --deploy --python /usr/local/bin/python3.6
 
 ADD start.sh /airnotifier
 RUN chmod a+x /airnotifier/start.sh

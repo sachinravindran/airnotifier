@@ -1,32 +1,49 @@
-# After staring container, don't forget to install db :
-#   docker exec -it airnotifier python /airnotifier/install.py
+# Coolify-managed deployment. See coolify.md for setup notes.
+# To install the DB schema after first deploy:
+#   docker exec -it <airnotifier-container> pipenv run ./install.py
 
-version: "3"
 services:
   mongodb:
-    image: mongo:latest
-    container_name: mongodb
-    ports:
-      - 27017:27017
+    image: mongo:4.4 # pinned to match pymongo==3.5.1's supported wire version
+    restart: unless-stopped
     environment:
       - MONGO_DATA_DIR=/data/db
       - MONGO_LOG_DIR=/tmp/mongo/mongo.log
     volumes:
-      - ./mongo/data:/data/db
-      - ./mongo/log:/tmp/mongo
-    command: mongod --logpath=/dev/null # --quiet
+      - mongodb-data:/data/db
+    command: mongod --logpath=/dev/null
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   airnotifier:
-    links:
-      - mongodb
-    depends_on:
-      - mongodb
     build: .
-    container_name: airnotifier
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
     volumes:
-      - ./certs:/var/airnotifier/pemdir
-      - ./logs:/var/log/airnotifier
-    ports:
-      - 8801:8801
+      - airnotifier-certs:/var/airnotifier/pemdir
+      - airnotifier-logs:/var/log/airnotifier
+    expose:
+      - "8801"
     environment:
       - MONGO_SERVER=mongodb
       - MONGO_PORT=27017
+      # Coolify magic variable: auto-generates a domain routed to this port.
+      # Remove and set the domain manually in the Coolify UI if you'd rather not use it.
+      - SERVICE_FQDN_AIRNOTIFIER_8801
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-o", "/dev/null", "http://localhost:8801/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  mongodb-data:
+  airnotifier-certs:
+  airnotifier-logs:
