@@ -10,10 +10,10 @@ RUN apt-get update && \
 
 RUN pip3 install pipenv
 
-RUN git clone -b 2.x https://github.com/airnotifier/airnotifier.git /airnotifier
+RUN git clone -b master https://github.com/airnotifier/airnotifier.git /airnotifier   # was -b 2.x
+COPY config.py /airnotifier/config.py
 RUN mkdir -p /var/airnotifier/pemdir && \
     mkdir -p /var/log/airnotifier
-
 VOLUME ["/airnotifier", "/var/log/airnotifier", "/var/airnotifier/pemdir"]
 WORKDIR /airnotifier
 
